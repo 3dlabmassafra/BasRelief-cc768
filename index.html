@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Lab Massafra – Bas Relief Generator</title>
+
+  <!-- model-viewer for GLB preview -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+
+  <style>
+    /* ─── Reset & Base ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #161a24;
+      --surface2:  #1e2332;
+      --border:    #2a3045;
+      --accent:    #6c63ff;
+      --accent2:   #a78bfa;
+      --accent-glow: rgba(108,99,255,.35);
+      --text:      #e2e8f0;
+      --text-muted:#8892a4;
+      --success:   #34d399;
+      --error:     #f87171;
+      --warning:   #fbbf24;
+      --radius:    12px;
+      --radius-sm: 8px;
+      --shadow:    0 8px 32px rgba(0,0,0,.5);
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ─── Scrollbar ─────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+    /* ─── Header ────────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #0d0f14 0%, #161a24 50%, #1a1040 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      gap: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 16px var(--accent-glow);
+      flex-shrink: 0;
+    }
+
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .logo-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -.3px;
+      line-height: 1.2;
+    }
+
+    .logo-subtitle {
+      font-size: .7rem;
+      color: var(--accent2);
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    .header-badge {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-size: .65rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 100px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    /* ─── Main Layout ───────────────────────────────────────────── */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Card ──────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface2);
+    }
+
+    .card-header h2 {
+      font-size: .95rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .card-header .icon {
+      font-size: 1.1rem;
+    }
+
+    .card-body { padding: 20px; }
+
+    /* ─── Form Controls ─────────────────────────────────────────── */
+    label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    textarea,
+    select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: .9rem;
+      padding: 10px 14px;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    textarea { resize: vertical; min-height: 110px; }
+
+    select option { background: var(--surface2); }
+
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+
+    /* API key row */
+    .api-key-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .api-key-row input { flex: 1; }
+
+    .icon-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .2s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ─── Tabs ──────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: .85rem;
+      font-weight: 600;
+      padding: 14px 16px;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      letter-spacing: .3px;
+    }
+
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .tab-panel { display: none; padding: 20px; }
+    .tab-panel.active { display: block; }
+
+    /* ─── Drag & Drop Zone ──────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .25s;
+      position: relative;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(108,99,255,.06);
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+    .drop-text { font-size: .9rem; color: var(--text-muted); }
+    .drop-text strong { color: var(--accent); }
+    .drop-hint { font-size: .75rem; color: var(--text-muted); margin-top: 6px; }
+
+    /* Image Preview */
+    #img-preview-wrap {
+      margin-top: 14px;
+      display: none;
+      position: relative;
+    }
+
+    #img-preview-wrap.visible { display: block; }
+
+    #img-preview {
+      width: 100%;
+      max-height: 220px;
+      object-fit: contain;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .preview-remove {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0,0,0,.7);
+      border: none;
+      border-radius: 50%;
+      color: var(--text);
+      cursor: pointer;
+      font-size: .85rem;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .2s;
+    }
+
+    .preview-remove:hover { background: var(--error); }
+
+    /* ─── Slider ────────────────────────────────────────────────── */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .slider-row label {
+      flex: 0 0 120px;
+      margin: 0;
+      font-size: .78rem;
+    }
+
+    .slider-row input[type="range"] {
+      flex: 1;
+      appearance: none;
+      background: var(--border);
+      border-radius: 4px;
+      height: 4px;
+      cursor: pointer;
+      padding: 0;
+      border: none;
+    }
+
+    .slider-row input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--accent-glow);
+      transition: transform .15s;
+    }
+
+    .slider-row input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .slider-val {
+      flex: 0 0 42px;
+      text-align: right;
+      font-size: .82rem;
+      color: var(--accent2);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ─── Collapsible Settings ──────────────────────────────────── */
+    .collapsible-trigger {
+      width: 100%;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: inherit;
+      font-size: .82rem;
+      font-weight: 600;
+      padding: 10px 14px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      transition: all .2s;
+      margin-bottom: 2px;
+    }
+
+    .collapsible-trigger:hover { border-color: var(--accent); color: var(--text); }
+
+    .collapsible-trigger .arrow {
+      margin-left: auto;
+      transition: transform .25s;
+      font-style: normal;
+    }
+
+    .collapsible-trigger.open .arrow { transform: rotate(180deg); }
+
+    .collapsible-body {
+      display: none;
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      padding: 16px;
+      margin-bottom: 16px;
+      background: var(--bg);
+    }
+
+    .collapsible-body.open { display: block; }
+
+    /* ─── Buttons ───────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: .9rem;
+      font-weight: 600;
+      padding: 12px 22px;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      color: #fff;
+      box-shadow: 0 4px 16px var(--accent-glow);
+      width: 100%;
+      font-size: .95rem;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px var(--accent-glow);
+    }
+
+    .btn-primary:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-success {
+      background: linear-gradient(135deg, #059669, #34d399);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(52,211,153,.3);
+    }
+
+    .btn-success:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(52,211,153,.4); }
+
+    /* ─── Spinner ───────────────────────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    .spinner.visible { display: block; }
+
+    /* ─── Progress ──────────────────────────────────────────────── */
+    #progress-section { margin-top: 20px; display: none; }
+    #progress-section.visible { display: block; }
+
+    .progress-bar-wrap {
+      background: var(--border);
+      border-radius: 100px;
+      height: 6px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    @keyframes progress-indeterminate {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(400%); }
+    }
+
+    .progress-bar {
+      height: 100%;
+      border-radius: 100px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width .4s ease;
+      width: 0%;
+    }
+
+    .progress-bar.indeterminate {
+      width: 30%;
+      animation: progress-indeterminate 1.5s ease-in-out infinite;
+    }
+
+    .progress-label {
+      font-size: .8rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+    .status-dot.pulsing { animation: pulse 1.2s ease-in-out infinite; }
+
+    /* ─── Alert / Error ─────────────────────────────────────────── */
+    .alert {
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: .85rem;
+      line-height: 1.5;
+      margin-top: 16px;
+      display: none;
+    }
+
+    .alert.visible { display: block; }
+    .alert-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.4); color: var(--error); }
+    .alert-warning { background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.35); color: var(--warning); }
+    .alert-success { background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.35); color: var(--success); }
+    .alert-info { background: rgba(108,99,255,.1); border: 1px solid rgba(108,99,255,.35); color: var(--accent2); }
+
+    /* ─── Result Panel ──────────────────────────────────────────── */
+    #result-section { display: none; }
+    #result-section.visible { display: block; }
+
+    .viewer-wrap {
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: radial-gradient(ellipse at center, #1a1a2e 0%, var(--bg) 100%);
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+      border: 1px solid var(--border);
+    }
+
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background-color: transparent;
+      --poster-color: transparent;
+    }
+
+    #stl-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .viewer-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      gap: 12px;
+    }
+
+    .viewer-placeholder .big-icon { font-size: 4rem; opacity: .4; }
+
+    .result-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .result-actions .btn { flex: 1; min-width: 140px; }
+
+    /* ─── Model Info ─────────────────────────────────────────────── */
+    .model-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .info-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+    }
+
+    .info-chip .label { font-size: .7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+    .info-chip .val { font-size: .9rem; font-weight: 600; color: var(--accent2); }
+
+    /* ─── CORS notice ───────────────────────────────────────────── */
+    .cors-notice {
+      background: rgba(251,191,36,.08);
+      border: 1px solid rgba(251,191,36,.3);
+      border-radius: var(--radius-sm);
+      color: var(--warning);
+      font-size: .78rem;
+      line-height: 1.6;
+      padding: 12px 14px;
+      margin-top: 12px;
+    }
+
+    .cors-notice strong { display: block; margin-bottom: 4px; }
+
+    /* ─── Footer ────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: .78rem;
+      padding: 20px 24px;
+      text-align: center;
+    }
+
+    footer a { color: var(--accent2); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ─── Utility ───────────────────────────────────────────────── */
+    .section-gap { margin-top: 20px; }
+    .mt-8  { margin-top:  8px; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+    .flex-center { display: flex; align-items: center; gap: 8px; }
+    .text-muted { color: var(--text-muted); font-size: .82rem; }
+
+    /* Hover card glow */
+    .card { transition: box-shadow .3s; }
+    .card:hover { box-shadow: 0 8px 40px rgba(108,99,255,.12); }
+
+    /* ─── Responsive tweaks ─────────────────────────────────────── */
+    @media (max-width: 600px) {
+      main { padding: 16px 14px 40px; }
+      .header-inner { height: 56px; }
+      .logo-text { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ HEADER ════════════════════════════ -->
+<header>
+  <div class="header-inner">
+    <a class="logo" href="#">
+      <div class="logo-icon">🏔️</div>
+      <div class="logo-text">
+        <span class="logo-title">3D Lab Massafra</span>
+        <span class="logo-subtitle">Bas Relief Generator</span>
+      </div>
+    </a>
+    <span class="header-badge">Powered by Triverse AI</span>
+  </div>
+</header>
+
+<!-- ═══════════════════════════ MAIN ══════════════════════════════ -->
+<main>
+
+  <!-- ─── LEFT PANEL: Controls ─────────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- API Key -->
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">🔑</span>
+        <h2>API Configuration</h2>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label for="api-key">Triverse AI API Key</label>
+          <div class="api-key-row">
+            <input type="password" id="api-key" placeholder="sk-..." autocomplete="off" spellcheck="false" />
+            <button class="icon-btn" id="toggle-key" title="Show/Hide key" aria-label="Toggle key visibility">👁️</button>
+            <button class="icon-btn" id="save-key" title="Save to localStorage" aria-label="Save key">💾</button>
+          </div>
+          <p class="text-muted mt-8">Stored in your browser's localStorage — never sent anywhere except the API.</p>
+        </div>
+
+        <div class="cors-notice">
+          <strong>✅ Proxy attivo</strong>
+          Le chiamate API passano attraverso il proxy serverless Vercel (<code>/api/proxy</code>) — nessun problema CORS.
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Mode Tabs -->
+    <div class="card">
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" role="tab" data-tab="upload" aria-selected="true">
+          🖼️ Upload Image
+        </button>
+        <button class="tab-btn" role="tab" data-tab="prompt" aria-selected="false">
+          ✏️ Text Prompt
+        </button>
+      </div>
+
+      <!-- Upload Tab -->
+      <div class="tab-panel active" id="tab-upload" role="tabpanel">
+        <div class="drop-zone" id="drop-zone">
+          <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp,image/bmp" />
+          <div class="drop-icon">📤</div>
+          <p class="drop-text"><strong>Click to upload</strong> or drag & drop</p>
+          <p class="drop-hint">PNG, JPG, WEBP — max 20 MB</p>
+        </div>
+
+        <div id="img-preview-wrap">
+          <img id="img-preview" alt="Preview" />
+          <button class="preview-remove" id="remove-img" title="Remove image" aria-label="Remove image">✕</button>
+        </div>
+      </div>
+
+      <!-- Prompt Tab -->
+      <div class="tab-panel" id="tab-prompt" role="tabpanel">
+        <div class="field">
+          <label for="prompt-input">Describe the relief scene</label>
+          <textarea id="prompt-input" placeholder="e.g. A Roman eagle bas-relief carved in marble, highly detailed, classical style..."></textarea>
+        </div>
+        <p class="text-muted">Tip: Be descriptive — mention style, material, depth, subject matter.</p>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">⚙️</span>
+        <h2>Generation Settings</h2>
+      </div>
+      <div class="card-body">
+
+        <button class="collapsible-trigger" id="settings-trigger" aria-expanded="false">
+          ⚙️ Advanced Parameters
+          <em class="arrow">▼</em>
+        </button>
+        <div class="collapsible-body" id="settings-body">
+          <div class="slider-row">
+            <label for="depth-scale">Depth Scale</label>
+            <input type="range" id="depth-scale" min="0.1" max="2.0" step="0.05" value="1.0" />
+            <span class="slider-val" id="depth-scale-val">1.00</span>
+          </div>
+          <div class="slider-row">
+            <label for="smoothness">Smoothness</label>
+            <input type="range" id="smoothness" min="0" max="10" step="1" value="5" />
+            <span class="slider-val" id="smoothness-val">5</span>
+          </div>
+          <div class="slider-row">
+            <label for="thickness">Thickness (mm)</label>
+            <input type="range" id="thickness" min="1" max="20" step="0.5" value="5" />
+            <span class="slider-val" id="thickness-val">5.0 mm</span>
+          </div>
+        </div>
+
+        <div class="field mt-12">
+          <label for="output-format">Output Format</label>
+          <select id="output-format">
+            <option value="glb">GLB (recommended — 3D preview)</option>
+            <option value="stl">STL (for 3D printing)</option>
+            <option value="obj">OBJ + MTL</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" id="generate-btn" style="margin-top:10px;">
+          <div class="spinner" id="spinner"></div>
+          <span id="btn-label">🚀 Generate Relief</span>
+        </button>
+
+        <!-- Progress -->
+        <div id="progress-section">
+          <div class="progress-bar-wrap">
+            <div class="progress-bar indeterminate" id="progress-bar"></div>
+          </div>
+          <div class="progress-label">
+            <div class="status-dot pulsing" id="status-dot"></div>
+            <span id="progress-label">Initializing…</span>
+          </div>
+        </div>
+
+        <!-- Error / alerts -->
+        <div class="alert alert-error" id="error-box" role="alert"></div>
+        <div class="alert alert-info" id="info-box" role="status"></div>
+      </div>
+    </div>
+
+  </div><!-- /left panel -->
+
+  <!-- ─── RIGHT PANEL: Viewer ───────────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Placeholder / Viewer -->
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">🎮</span>
+        <h2>3D Preview</h2>
+      </div>
+      <div class="card-body" style="padding:16px;">
+
+        <div class="viewer-wrap" id="viewer-wrap">
+          <!-- Shown before generation -->
+          <div class="viewer-placeholder" id="viewer-placeholder">
+            <div class="big-icon">🏔️</div>
+            <p style="font-size:.9rem;color:var(--text-muted);text-align:center;max-width:240px;">
+              Your 3D bas-relief will appear here after generation.
+            </p>
+          </div>
+
+          <!-- model-viewer (GLB) -->
+          <model-viewer
+            id="model-viewer-el"
+            camera-controls
+            auto-rotate
+            shadow-intensity="1"
+            environment-image="neutral"
+            style="display:none;width:100%;height:100%;"
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+          ></model-viewer>
+
+          <!-- STL canvas -->
+          <canvas id="stl-canvas" style="display:none;"></canvas>
+        </div>
+
+        <!-- Result section -->
+        <div id="result-section">
+          <div class="model-info" id="model-info"></div>
+          <div class="result-actions">
+            <button class="btn btn-success" id="download-btn" style="display:none;">
+              ⬇️ Download Model
+            </button>
+            <button class="btn btn-secondary" id="reset-btn">
+              🔄 New Generation
+            </button>
+          </div>
+          <div class="alert alert-success" id="success-box" role="status"></div>
+        </div>
+
+        <!-- Placeholder result actions always visible -->
+        <div class="result-actions" id="placeholder-actions">
+          <button class="btn btn-secondary" id="reset-btn-2" style="flex:0;min-width:140px;">
+            🔄 Reset
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">📖</span>
+        <h2>How It Works</h2>
+      </div>
+      <div class="card-body">
+        <ol style="padding-left:18px;display:flex;flex-direction:column;gap:10px;font-size:.85rem;color:var(--text-muted);">
+          <li><strong style="color:var(--text);">Enter API Key</strong> — get yours at <a href="https://triverse.ai" target="_blank" style="color:var(--accent2);">triverse.ai</a> and paste it above.</li>
+          <li><strong style="color:var(--text);">Upload or Describe</strong> — provide a reference image or a text prompt of your scene.</li>
+          <li><strong style="color:var(--text);">Tune Parameters</strong> — adjust depth, smoothness, and thickness to match your needs.</li>
+          <li><strong style="color:var(--text);">Generate</strong> — the AI will create a 3D bas-relief model. Generation takes ~30–90 s.</li>
+          <li><strong style="color:var(--text);">Preview & Download</strong> — rotate the 3D model, then download STL/GLB for printing or use.</li>
+        </ol>
+      </div>
+    </div>
+
+  </div><!-- /right panel -->
+</main>
+
+<!-- ═══════════════════════════ FOOTER ════════════════════════════ -->
+<footer>
+  <p>
+    3D Lab Massafra – Bas Relief Generator &nbsp;|&nbsp;
+    Powered by <a href="https://triverse.ai" target="_blank">Triverse AI</a> &nbsp;|&nbsp;
+    <a href="https://github.com/3dlabmassafra/BasRelief" target="_blank">GitHub</a>
+  </p>
+</footer>
+
+<!-- ═══════════════════════════ SCRIPTS ═══════════════════════════ -->
+<script>
+'use strict';
+
+/* ─── Constants ──────────────────────────────────────────────── */
+// /api/proxy è mappato alla serverless function su Netlify (netlify.toml) e Vercel.
+const IS_VERCEL       = location.hostname.endsWith('.vercel.app');
+const IS_NETLIFY      = location.hostname.endsWith('.netlify.app') || location.hostname.endsWith('.netlify.live');
+const IS_GITHUB_PAGES = location.hostname.endsWith('.github.io');
+const IS_LOCAL        = location.protocol === 'file:' || location.hostname === 'localhost';
+const USE_PROXY       = IS_VERCEL || IS_NETLIFY; // serverless function disponibile
+const PROXY_BASE = '/api/proxy';
+const API_BASE   = 'https://api.triverse.ai/api/v1';
+const POLL_INTERVAL   = 3000;
+const MAX_POLL        = 120;
+const LS_KEY          = 'triverse_api_key';
+
+/**
+ * Su Netlify/Vercel: passa per /api/proxy (serverless, no CORS).
+ * Altrove: chiamata diretta all'API Triverse.
+ */
+function apiFetch(path, apiKey, options = {}) {
+  if (USE_PROXY) {
+    const url = `${PROXY_BASE}?path=${encodeURIComponent(path)}`;
+    const headers = { 'X-Api-Key': apiKey, ...(options.headers || {}) };
+    return fetch(url, { ...options, headers });
+  } else {
+    const url = `${API_BASE}/${path}`;
+    const headers = { 'Authorization': `Bearer ${apiKey}`, ...(options.headers || {}) };
+    return fetch(url, { ...options, headers });
+  }
+}
+
+/* Banner su GitHub Pages */
+window.addEventListener('DOMContentLoaded', () => {
+  if (IS_GITHUB_PAGES) {
+    const banner = document.createElement('div');
+    banner.style.cssText = `
+      position:fixed; top:0; left:0; right:0; z-index:9999;
+      background:#f59e0b; color:#000; text-align:center;
+      padding:10px 16px; font-weight:600; font-size:14px;
+    `;
+    banner.innerHTML = `
+      ⚠️ Stai usando <b>GitHub Pages</b> (solo statico). Usa la versione su
+      <a href="https://app.netlify.com/start/deploy?repository=https://github.com/3dlabmassafra/BasRelief"
+         target="_blank" style="color:#1e3a8a;text-decoration:underline;font-weight:700">
+        Netlify (click qui — gratis)
+      </a> per il proxy API senza CORS.
+    `;
+    document.body.prepend(banner);
+  }
+});
+
+/* ─── DOM refs ───────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+
+const apiKeyInput     = $('api-key');
+const toggleKeyBtn    = $('toggle-key');
+const saveKeyBtn      = $('save-key');
+const dropZone        = $('drop-zone');
+const fileInput       = $('file-input');
+const imgPreviewWrap  = $('img-preview-wrap');
+const imgPreview      = $('img-preview');
+const removeImgBtn    = $('remove-img');
+const promptInput     = $('prompt-input');
+const depthScale      = $('depth-scale');
+const depthScaleVal   = $('depth-scale-val');
+const smoothness      = $('smoothness');
+const smoothnessVal   = $('smoothness-val');
+const thicknessRange  = $('thickness');
+const thicknessVal    = $('thickness-val');
+const outputFormat    = $('output-format');
+const generateBtn     = $('generate-btn');
+const spinner         = $('spinner');
+const btnLabel        = $('btn-label');
+const progressSection = $('progress-section');
+const progressBar     = $('progress-bar');
+const progressLabel   = $('progress-label');
+const statusDot       = $('status-dot');
+const errorBox        = $('error-box');
+const infoBox         = $('info-box');
+const viewerWrap      = $('viewer-wrap');
+const viewerPlaceholder=$('viewer-placeholder');
+const modelViewerEl   = $('model-viewer-el');
+const stlCanvas       = $('stl-canvas');
+const resultSection   = $('result-section');
+const modelInfo       = $('model-info');
+const downloadBtn     = $('download-btn');
+const resetBtn        = $('reset-btn');
+const resetBtn2       = $('reset-btn-2');
+const successBox      = $('success-box');
+const settingsTrigger = $('settings-trigger');
+const settingsBody    = $('settings-body');
+const placeholderActions=$('placeholder-actions');
+
+/* ─── State ──────────────────────────────────────────────────── */
+let currentFile     = null;
+let activeTab       = 'upload';
+let pollTimer       = null;
+let downloadBlobUrl = null;
+let downloadFilename= '';
+
+/* ─── Init: load saved API key ───────────────────────────────── */
+(function init() {
+  const saved = localStorage.getItem(LS_KEY);
+  if (saved) apiKeyInput.value = saved;
+})();
+
+/* ─── API Key UI ─────────────────────────────────────────────── */
+toggleKeyBtn.addEventListener('click', () => {
+  const isPass = apiKeyInput.type === 'password';
+  apiKeyInput.type = isPass ? 'text' : 'password';
+  toggleKeyBtn.textContent = isPass ? '🙈' : '👁️';
+});
+
+saveKeyBtn.addEventListener('click', () => {
+  const key = apiKeyInput.value.trim();
+  if (!key) { showError('Please enter an API key first.'); return; }
+  localStorage.setItem(LS_KEY, key);
+  showInfo('✅ API key saved to localStorage.');
+});
+
+/* ─── Tab Switching ──────────────────────────────────────────── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected','true');
+    const panel = $('tab-' + btn.dataset.tab);
+    if (panel) panel.classList.add('active');
+    activeTab = btn.dataset.tab;
+  });
+});
+
+/* ─── Collapsible Settings ───────────────────────────────────── */
+settingsTrigger.addEventListener('click', () => {
+  const open = settingsBody.classList.toggle('open');
+  settingsTrigger.classList.toggle('open', open);
+  settingsTrigger.setAttribute('aria-expanded', open);
+});
+
+/* ─── Sliders ────────────────────────────────────────────────── */
+depthScale.addEventListener('input', () => {
+  depthScaleVal.textContent = parseFloat(depthScale.value).toFixed(2);
+});
+smoothness.addEventListener('input', () => {
+  smoothnessVal.textContent = smoothness.value;
+});
+thicknessRange.addEventListener('input', () => {
+  thicknessVal.textContent = parseFloat(thicknessRange.value).toFixed(1) + ' mm';
+});
+
+/* ─── Drag & Drop ────────────────────────────────────────────── */
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) handleFile(fileInput.files[0]);
+});
+
+removeImgBtn.addEventListener('click', () => {
+  currentFile = null;
+  imgPreviewWrap.classList.remove('visible');
+  imgPreview.src = '';
+  fileInput.value = '';
+});
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) { showError('Please upload a valid image file.'); return; }
+  if (file.size > 20 * 1024 * 1024) { showError('File too large. Maximum size is 20 MB.'); return; }
+  currentFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    imgPreview.src = e.target.result;
+    imgPreviewWrap.classList.add('visible');
+  };
+  reader.readAsDataURL(file);
+  clearAlerts();
+}
+
+/* ─── Generate ───────────────────────────────────────────────── */
+generateBtn.addEventListener('click', startGeneration);
+
+async function startGeneration() {
+  clearAlerts();
+  const apiKey = apiKeyInput.value.trim();
+  if (!apiKey) { showError('Please enter your Triverse AI API key.'); return; }
+
+  if (activeTab === 'upload' && !currentFile) {
+    showError('Please upload an image first, or switch to the Text Prompt tab.');
+    return;
+  }
+  if (activeTab === 'prompt' && !promptInput.value.trim()) {
+    showError('Please enter a text prompt.');
+    return;
+  }
+
+  setLoading(true);
+  showProgress('Sending request to Triverse AI…', 10);
+
+  try {
+    const taskId = await submitJob(apiKey);
+    if (taskId === null) {
+      // Direct result, no polling needed
+      setLoading(false);
+      showProgress('Completato!', 100);
+      return;
+    }
+    showProgress('Job submitted. Waiting for processing…', 25);
+    await pollForResult(taskId, apiKey);
+  } catch (err) {
+    setLoading(false);
+    hideProgress();
+    showError(formatError(err));
+  }
+}
+
+async function submitJob(apiKey) {
+  const formData = new FormData();
+
+  if (activeTab === 'upload' && currentFile) {
+    formData.append('image', currentFile, currentFile.name);
+  }
+  if (activeTab === 'prompt' && promptInput.value.trim()) {
+    formData.append('prompt', promptInput.value.trim());
+  }
+
+  formData.append('depth_scale', depthScale.value);
+  formData.append('smoothness',  smoothness.value);
+  formData.append('thickness',   thicknessRange.value);
+  formData.append('format',      outputFormat.value);
+
+  // Try primary endpoint (routed through /api/proxy on Vercel to avoid CORS)
+  const ENDPOINTS = ['relief/generate', 'image-to-3d', 'relief'];
+  let res, data, lastErr;
+
+  for (const endpoint of ENDPOINTS) {
+    try {
+      showProgress(`Trying endpoint: ${endpoint}…`, 12);
+      res = await apiFetch(endpoint, apiKey, { method: 'POST', body: formData });
+      data = await safeJson(res);
+      if (data && (res.ok || data.code === 0)) break; // success
+      lastErr = new Error(data?.message || data?.suggestion || `HTTP ${res.status} from ${endpoint}`);
+    } catch (e) {
+      lastErr = e;
+      console.warn(`Endpoint ${endpoint} failed:`, e);
+    }
+    data = null;
+  }
+
+  if (!data) throw lastErr || new Error('All endpoints failed.');
+  if (!res.ok || (data.code !== undefined && data.code !== 0)) {
+    throw new Error(data.message || data.suggestion || `HTTP ${res.status}`);
+  }
+
+  // Extract task id — handle both async (task_id) and sync (model_url) responses
+  const d = data.data || data || {};
+  const id = d.task_id || d.taskId || d.id || d.job_id;
+  // Some APIs return the result directly (no polling needed)
+  const directUrl = d.model_url || d.output_url || d.url || d.file_url;
+  if (directUrl && !id) {
+    await handleResult(directUrl, d, 'direct');
+    return null; // signal: no polling needed
+  }
+  if (!id) throw new Error(`API non ha restituito un task_id.\n\nRisposta: ${JSON.stringify(d).slice(0, 300)}`);
+  return id;
+}
+
+/** Safely parse JSON; if body is HTML/text, return null and log it. */
+async function safeJson(res) {
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('json')) {
+    const text = await res.text();
+    console.error('Non-JSON response:', res.status, text.slice(0, 500));
+    return { code: res.status, message: `Server returned non-JSON (HTTP ${res.status}). Endpoint potrebbe non esistere.`, _raw: text.slice(0, 200) };
+  }
+  return res.json();
+}
+
+async function pollForResult(taskId, apiKey) {
+  let polls = 0;
+
+  return new Promise((resolve, reject) => {
+    pollTimer = setInterval(async () => {
+      polls++;
+      const pct = Math.min(25 + (polls / MAX_POLL) * 65, 90);
+      showProgress(`Processing… (poll ${polls}/${MAX_POLL})`, pct);
+
+      if (polls > MAX_POLL) {
+        clearInterval(pollTimer);
+        reject(new Error('Generation timed out. Please try again.'));
+        return;
+      }
+
+      try {
+        const res  = await apiFetch(`tasks/${taskId}`, apiKey, { method: 'GET' });
+        const data = await safeJson(res);
+
+        if (data.code !== 0) {
+          clearInterval(pollTimer);
+          reject(new Error(data.message || data.suggestion || 'Task query failed'));
+          return;
+        }
+
+        const d      = data.data || {};
+        const status = (d.status || '').toLowerCase();
+
+        if (status === 'completed' || status === 'success' || status === 'done') {
+          clearInterval(pollTimer);
+          showProgress('Complete! Loading model…', 98);
+          const modelUrl = d.model_url || d.output_url || d.url || d.file_url;
+          if (!modelUrl) {
+            reject(new Error('No model URL in response. Check the API documentation.'));
+            return;
+          }
+          await handleResult(modelUrl, d, taskId);
+          resolve();
+        } else if (status === 'failed' || status === 'error') {
+          clearInterval(pollTimer);
+          reject(new Error(d.error || d.message || 'Generation failed on server side.'));
+        }
+        // else still processing — continue polling
+      } catch (e) {
+        // Network hiccup — keep trying unless max polls
+        console.warn('Poll error:', e);
+      }
+    }, POLL_INTERVAL);
+  });
+}
+
+async function handleResult(modelUrl, meta, taskId) {
+  const format = outputFormat.value;
+  downloadFilename = `bas-relief-${taskId}.${format}`;
+
+  // Fetch the model blob
+  let blobUrl = modelUrl; // may be used directly if same-origin or CORS allows
+  try {
+    const resp = await fetch(modelUrl);
+    const blob = await resp.blob();
+    blobUrl = URL.createObjectURL(blob);
+    downloadBlobUrl = blobUrl;
+  } catch (e) {
+    console.warn('Could not fetch model blob, using direct URL:', e);
+    downloadBlobUrl = modelUrl;
+    blobUrl = modelUrl;
+  }
+
+  // Show viewer
+  viewerPlaceholder.style.display = 'none';
+  resultSection.classList.add('visible');
+  placeholderActions.style.display = 'none';
+
+  if (format === 'glb') {
+    modelViewerEl.style.display = 'block';
+    modelViewerEl.src = blobUrl;
+    stlCanvas.style.display = 'none';
+  } else if (format === 'stl') {
+    stlCanvas.style.display = 'block';
+    modelViewerEl.style.display = 'none';
+    renderSTL(blobUrl);
+  } else {
+    // OBJ — just offer download
+    modelViewerEl.style.display = 'none';
+    stlCanvas.style.display = 'none';
+    viewerPlaceholder.style.display = 'flex';
+    viewerPlaceholder.innerHTML = `<div class="big-icon">✅</div><p style="color:var(--success);font-size:.9rem;">OBJ model ready — click Download below.</p>`;
+  }
+
+  // Info chips
+  modelInfo.innerHTML = `
+    <div class="info-chip"><div class="label">Format</div><div class="val">${format.toUpperCase()}</div></div>
+    <div class="info-chip"><div class="label">Depth Scale</div><div class="val">${depthScale.value}</div></div>
+    <div class="info-chip"><div class="label">Smoothness</div><div class="val">${smoothness.value}</div></div>
+    <div class="info-chip"><div class="label">Thickness</div><div class="val">${thicknessRange.value} mm</div></div>
+  `;
+
+  // Download button
+  downloadBtn.style.display = 'inline-flex';
+  downloadBtn.onclick = () => {
+    const a = document.createElement('a');
+    a.href = downloadBlobUrl;
+    a.download = downloadFilename;
+    a.click();
+  };
+
+  showSuccess('✅ 3D bas-relief generated successfully! Use mouse to rotate/zoom the model.');
+  showProgress('Done!', 100);
+  progressBar.classList.remove('indeterminate');
+  setLoading(false);
+  statusDot.classList.remove('pulsing');
+  statusDot.style.background = 'var(--success)';
+}
+
+/* ─── Three.js STL Viewer (inline, no external deps) ─────────── */
+function renderSTL(url) {
+  // Lazy-load Three.js + STLLoader from CDN
+  const loadScript = src => new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+
+  Promise.all([
+    loadScript('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js'),
+    loadScript('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js'),
+    loadScript('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/STLLoader.js'),
+  ]).then(() => {
+    const canvas = stlCanvas;
+    const rect = viewerWrap.getBoundingClientRect();
+    canvas.width  = rect.width  || 600;
+    canvas.height = rect.height || 450;
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(canvas.width, canvas.height);
+    renderer.setClearColor(0x0d0f14, 1);
+
+    const scene  = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height, 0.1, 10000);
+    camera.position.set(0, 0, 300);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+    dir.position.set(1, 2, 3);
+    scene.add(dir);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    const loader = new THREE.STLLoader();
+    loader.load(url, geometry => {
+      geometry.computeBoundingBox();
+      const box = geometry.boundingBox;
+      const cx = (box.max.x + box.min.x) / 2;
+      const cy = (box.max.y + box.min.y) / 2;
+      const cz = (box.max.z + box.min.z) / 2;
+      geometry.translate(-cx, -cy, -cz);
+
+      const size = Math.max(
+        box.max.x - box.min.x,
+        box.max.y - box.min.y,
+        box.max.z - box.min.z
+      );
+      camera.position.set(0, 0, size * 1.8);
+      controls.update();
+
+      const mat  = new THREE.MeshPhongMaterial({ color: 0x6c63ff, specular: 0x444444, shininess: 60 });
+      const mesh = new THREE.Mesh(geometry, mat);
+      scene.add(mesh);
+
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+    });
+  }).catch(err => console.error('STL viewer load error:', err));
+}
+
+/* ─── Helpers ────────────────────────────────────────────────── */
+function setLoading(on) {
+  generateBtn.disabled = on;
+  spinner.classList.toggle('visible', on);
+  btnLabel.textContent = on ? 'Generating…' : '🚀 Generate Relief';
+}
+
+function showProgress(msg, pct) {
+  progressSection.classList.add('visible');
+  progressLabel.textContent = msg;
+  if (pct !== undefined) {
+    progressBar.classList.remove('indeterminate');
+    progressBar.style.width = pct + '%';
+    if (pct < 100) progressBar.classList.add('indeterminate');
+    else progressBar.classList.remove('indeterminate');
+  }
+}
+
+function hideProgress() {
+  progressSection.classList.remove('visible');
+}
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.classList.add('visible');
+  infoBox.classList.remove('visible');
+}
+
+function showInfo(msg) {
+  infoBox.textContent = msg;
+  infoBox.classList.add('visible');
+  errorBox.classList.remove('visible');
+}
+
+function showSuccess(msg) {
+  successBox.textContent = msg;
+  successBox.classList.add('visible');
+}
+
+function clearAlerts() {
+  errorBox.classList.remove('visible');
+  infoBox.classList.remove('visible');
+  successBox.classList.remove('visible');
+}
+
+function formatError(err) {
+  const msg = err.message || String(err);
+  if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('CORS')) {
+    return `Network error: ${msg}\n\nContatta l'amministratore se il problema persiste.`;
+  }
+  return msg;
+}
+
+/* ─── Reset ──────────────────────────────────────────────────── */
+function resetAll() {
+  clearAlerts();
+  hideProgress();
+  setLoading(false);
+  clearInterval(pollTimer);
+
+  currentFile = null;
+  imgPreviewWrap.classList.remove('visible');
+  imgPreview.src = '';
+  fileInput.value = '';
+  promptInput.value = '';
+
+  resultSection.classList.remove('visible');
+  placeholderActions.style.display = '';
+  viewerPlaceholder.style.display = 'flex';
+  modelViewerEl.style.display = 'none';
+  modelViewerEl.src = '';
+  stlCanvas.style.display = 'none';
+  downloadBtn.style.display = 'none';
+  modelInfo.innerHTML = '';
+
+  progressBar.style.width = '0%';
+  progressBar.classList.add('indeterminate');
+  statusDot.classList.add('pulsing');
+  statusDot.style.background = '';
+
+  if (downloadBlobUrl && downloadBlobUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(downloadBlobUrl);
+    downloadBlobUrl = null;
+  }
+}
+
+resetBtn.addEventListener('click', resetAll);
+resetBtn2.addEventListener('click', resetAll);
+</script>
+
+</body>
+</html>
